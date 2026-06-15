@@ -6,7 +6,7 @@ import (
     "net/http"
 
     "github.com/go-chi/chi/v5"
-    "github.com/YOUR_USERNAME/dayplan/internal/store"
+    "github.com/Cameron-Guinnee/dayplan/internal/store"
 )
 
 func main() {

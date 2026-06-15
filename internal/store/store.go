@@ -4,7 +4,7 @@ import (
     "database/sql"
     "time"
 
-    "github.com/YOUR_USERNAME/dayplan/internal/models"
+    "github.com/Cameron-Guinnee/dayplan/internal/models"
     _ "modernc.org/sqlite"
 )
 
