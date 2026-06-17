@@ -14,9 +14,9 @@ import (
 
 // ScheduledTask is a task that has been assigned a concrete start and end time.
 type ScheduledTask struct {
-	Task      models.Task
-	StartTime time.Time
-	EndTime   time.Time
+	Task      models.Task `json:"task"`
+	StartTime time.Time   `json:"start_time"`
+	EndTime   time.Time   `json:"end_time"`
 }
 
 // freeWindow is an open time interval within the day that tasks can fill.

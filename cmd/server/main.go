@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Cameron-Guinnee/dayplan/internal/models"
+	"github.com/Cameron-Guinnee/dayplan/internal/scheduler"
 	"github.com/Cameron-Guinnee/dayplan/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -34,6 +35,8 @@ func main() {
 
 	r.Post("/time-blocks", createTimeBlock(db))
 	r.Get("/time-blocks", listTimeBlocks(db))
+
+	r.Get("/schedule", getSchedule(db))
 
 	fmt.Println("Server starting on :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
@@ -104,6 +107,87 @@ func createTimeBlock(db *store.Store) http.HandlerFunc {
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(tb)
 	}
+}
+
+// getSchedule runs the EDF scheduler for a given day and returns the result.
+//
+// Query params:
+//
+//	date      – YYYY-MM-DD, defaults to today
+//	day_start – HH:MM, start of the schedulable window, defaults to 09:00
+//	day_end   – HH:MM, end of the schedulable window, defaults to 17:00
+//
+// Response shape:
+//
+//	{ "scheduled": [...], "unscheduled": [...] }
+func getSchedule(db *store.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		date := time.Now()
+		if dateStr := r.URL.Query().Get("date"); dateStr != "" {
+			var err error
+			date, err = time.Parse("2006-01-02", dateStr)
+			if err != nil {
+				http.Error(w, "invalid date format, use YYYY-MM-DD", http.StatusBadRequest)
+				return
+			}
+		}
+
+		dayStart, err := parseDayTime(date, r.URL.Query().Get("day_start"), 9, 0)
+		if err != nil {
+			http.Error(w, "invalid day_start, use HH:MM", http.StatusBadRequest)
+			return
+		}
+		dayEnd, err := parseDayTime(date, r.URL.Query().Get("day_end"), 17, 0)
+		if err != nil {
+			http.Error(w, "invalid day_end, use HH:MM", http.StatusBadRequest)
+			return
+		}
+		if !dayEnd.After(dayStart) {
+			http.Error(w, "day_end must be after day_start", http.StatusBadRequest)
+			return
+		}
+
+		tasks, err := db.GetTasks()
+		if err != nil {
+			http.Error(w, "failed to load tasks", http.StatusInternalServerError)
+			return
+		}
+		blocks, err := db.GetTimeBlocks(date)
+		if err != nil {
+			http.Error(w, "failed to load time blocks", http.StatusInternalServerError)
+			return
+		}
+
+		scheduled, unscheduled := scheduler.Schedule(tasks, blocks, dayStart, dayEnd)
+
+		// Prefer empty arrays over null in the JSON output.
+		if scheduled == nil {
+			scheduled = []scheduler.ScheduledTask{}
+		}
+		if unscheduled == nil {
+			unscheduled = []models.Task{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(struct {
+			Scheduled   []scheduler.ScheduledTask `json:"scheduled"`
+			Unscheduled []models.Task             `json:"unscheduled"`
+		}{scheduled, unscheduled})
+	}
+}
+
+// parseDayTime builds a time.Time from date + an optional "HH:MM" string.
+// If the string is empty, defaultH and defaultM are used instead.
+func parseDayTime(date time.Time, s string, defaultH, defaultM int) (time.Time, error) {
+	h, m := defaultH, defaultM
+	if s != "" {
+		t, err := time.Parse("15:04", s)
+		if err != nil {
+			return time.Time{}, err
+		}
+		h, m = t.Hour(), t.Minute()
+	}
+	return time.Date(date.Year(), date.Month(), date.Day(), h, m, 0, 0, date.Location()), nil
 }
 
 // listTimeBlocks returns time blocks for a given day.
