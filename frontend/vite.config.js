@@ -7,6 +7,7 @@ export default defineConfig({
     proxy: {
       '/tasks': 'http://localhost:8080',
       '/time-blocks': 'http://localhost:8080',
+      '/schedule': 'http://localhost:8080',
     },
   },
 })

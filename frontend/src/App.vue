@@ -29,7 +29,11 @@
 
         <!-- Timeline -->
         <div class="flex-1 px-6 py-4 overflow-x-hidden">
-          <TimelineView :timeBlocks="timeBlocks" />
+          <TimelineView
+            :timeBlocks="timeBlocks"
+            :scheduledTasks="scheduledTasks"
+            :unscheduled="unscheduledTasks"
+          />
         </div>
 
         <!-- Add time block -->
@@ -56,10 +60,12 @@ import TaskList from './components/TaskList.vue'
 import TaskForm from './components/TaskForm.vue'
 import TimelineView from './components/TimelineView.vue'
 import TimeBlockForm from './components/TimeBlockForm.vue'
-import { getTasks, createTask, completeTask, getTimeBlocks, createTimeBlock } from './api.js'
+import { getTasks, createTask, completeTask, getTimeBlocks, createTimeBlock, getSchedule } from './api.js'
 
 const tasks = ref([])
 const timeBlocks = ref([])
+const scheduledTasks = ref([])
+const unscheduledTasks = ref([])
 const selectedDate = ref(new Date())
 const error = ref(null)
 
@@ -88,10 +94,19 @@ async function loadTimeBlocks() {
   catch (e) { showError(e.message) }
 }
 
+async function loadSchedule() {
+  try {
+    const result = await getSchedule(selectedDate.value)
+    scheduledTasks.value = result.scheduled
+    unscheduledTasks.value = result.unscheduled
+  } catch (e) { showError(e.message) }
+}
+
 async function handleCreateTask(task) {
   try {
     const created = await createTask(task)
     tasks.value.push(created)
+    await loadSchedule()
   } catch (e) { showError(e.message) }
 }
 
@@ -99,6 +114,7 @@ async function handleComplete(id) {
   try {
     await completeTask(id)
     tasks.value = tasks.value.filter(t => t.id !== id)
+    await loadSchedule()
   } catch (e) { showError(e.message) }
 }
 
@@ -106,12 +122,14 @@ async function handleCreateTimeBlock(block) {
   try {
     const created = await createTimeBlock(block)
     timeBlocks.value.push(created)
+    await loadSchedule()
   } catch (e) { showError(e.message) }
 }
 
-watch(selectedDate, loadTimeBlocks)
+watch(selectedDate, () => { loadTimeBlocks(); loadSchedule() })
 onMounted(() => {
   loadTasks()
   loadTimeBlocks()
+  loadSchedule()
 })
 </script>
