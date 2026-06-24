@@ -15,10 +15,9 @@ matters for that — duration, deadline, priority — and lays your fixed
 commitments out on a visual timeline so you can see what your day actually
 looks like at a glance.
 
-**Where this is headed:** the next milestone is an automatic scheduler that
-takes your tasks and fixed time blocks and proposes when each task should
-happen, using an earliest-deadline-first algorithm. Right now tasks are
-tracked but not yet auto-scheduled — see [Roadmap](#roadmap).
+The backend runs an earliest-deadline-first scheduler that fits tasks into
+the gaps between your fixed commitments, and the frontend renders the result
+on a visual daily timeline — see [Roadmap](#roadmap) for what's next.
 
 ## Tech stack
 
@@ -37,8 +36,10 @@ tracked but not yet auto-scheduled — see [Roadmap](#roadmap).
 - Create tasks with a title, estimated duration, deadline, and priority
 - Mark tasks complete
 - Add fixed time blocks (meetings, appointments, etc.) for a given day
-- Visual daily timeline of time blocks, with day-by-day navigation
-- REST API backing both, with a clean separation between models, storage, and HTTP handlers
+- EDF scheduler fits tasks into the free gaps around your fixed commitments
+- Visual daily timeline showing both fixed blocks and scheduled tasks, with day-by-day navigation
+- Unscheduled tasks surfaced in an amber banner when the day is too full
+- REST API backing all of the above, with a clean separation between models, storage, scheduler, and HTTP handlers
 
 ## Getting started
 
@@ -77,6 +78,7 @@ The dev server will print the local URL (typically `http://localhost:5173`).
 | PATCH  | `/tasks/{id}/complete`    | Mark a task complete                          |
 | POST   | `/time-blocks`            | Create a time block                           |
 | GET    | `/time-blocks?date=YYYY-MM-DD` | List time blocks for a given day (defaults to today) |
+| GET    | `/schedule?date=YYYY-MM-DD&day_start=HH:MM&day_end=HH:MM` | Run the EDF scheduler; returns `scheduled` and `unscheduled` arrays |
 
 ## Project structure
 
@@ -86,6 +88,7 @@ dayplan/
 │   └── server/         # Go entry point, route wiring, HTTP handlers
 ├── internal/
 │   ├── models/          # Task, TimeBlock types
+│   ├── scheduler/       # EDF scheduling algorithm (pure Go, no DB/HTTP deps)
 │   └── store/            # SQLite-backed persistence
 ├── frontend/
 │   └── src/
@@ -98,8 +101,10 @@ dayplan/
 
 ## Roadmap
 
-- [ ] Scheduling algorithm (`internal/scheduler`) — earliest-deadline-first, fitting tasks into the gaps between fixed time blocks
-- [ ] Render scheduled tasks on the timeline alongside time blocks
+- [x] Scheduling algorithm (`internal/scheduler`) — earliest-deadline-first, fitting tasks into the gaps between fixed time blocks
+- [x] Render scheduled tasks on the timeline alongside time blocks
+- [ ] Delete tasks and time blocks
+- [ ] Input validation (required fields, sensible bounds)
 - [ ] Priority-weighted scheduling on top of EDF
 - [ ] Drag-and-drop manual adjustment of the generated schedule
 - [ ] Recurring tasks
